@@ -92,6 +92,10 @@ class DPFN(object):
         _,self.o_data = sim.dataGenerate(F,H,Q,R,c1,c2,T)
 
     def buildPrior(self):
+        """
+        z: tensor with size M x dim_s
+        s_0: tensor with size M x dim_s
+        """
         z = tf.random_normal( [self.M,self.dim_s], dtype=tf.float64)
         s_0 = tf.matmul(z,self.W0) + self.b0
         return s_0
@@ -103,7 +107,6 @@ class DPFN(object):
         """
         z = tf.random_normal( [self.M,self.dim_s], dtype=tf.float64)
         s_new = tf.matmul(tf.concat((s,z),axis=1),self.W1) + self.b1
-        # self.buildT_s_new = s_new
         return s_new
 
     def buildO(self,snew,o_t):
@@ -130,7 +133,6 @@ class DPFN(object):
         ohat: tensor with size M x dim_o
         """
         ohat = tf.matmul(s, self.W2) + self.b2
-        # self.buildF_ohat = ohat
         return ohat
 
     def buildForwardPropagate(self):
@@ -141,8 +143,7 @@ class DPFN(object):
         build tensor
             (1) self.s_new: size M x dim_s
             (2) self.s_new_w: size M
-            (3) self.o_post: size dim_o
-            (4) self.o_forecast: a list of K tensor size dim_o
+            (3) self.o_forecast: a list of K tensor size dim_o
         """
         self.s_0 = self.buildPrior()
         self.s_old = tf.placeholder(tf.float64, [self.M,self.dim_s],name='s_old')
@@ -169,7 +170,7 @@ class DPFN(object):
             This function will
             (1) fetch observation data from self.o_data (size T x dim_o)
             (2) perform forward propagate
-            (3) save results in self.s_data (size T x M x dim_s)
+            (3) save results in self.s_data (size T x M x dim_s); also calculate error and save in error (size T x (K+1))
         """
         feed = {  self.o_t   : self.o_data[0],
                   self.s_old : self.sess.run(self.s_0),
@@ -204,14 +205,12 @@ class DPFN(object):
     def buildBackPropagate(self):
         """
         build placeholder:
-            (1) self.s_init: particles for s_post[t-K], with size M x dim_s
-            (2) self.s_end: particles for s_post[t], with size M x dim_s
-            (3) self.o_seq: observation sequence for time self.o_data[t-K+1:t+1], with size K x dim_o
+            (1) self.o_seq: observation sequence for time self.o_data, with size K x dim_o
         build tensor:
-            (1) self.o_hat: a list, pre/post fit value for self.o_seq
-            (2) self.loss: a list, MSE for sum((self.o_seq-self.o_hat)**2)
-            (3) self.totalLoss: sum of self.loss
-            (4) self.opt: Adam optimizer for self.totalLoss
+            (1) self.o_pre: a list, forecast one step further pre fit value for self.o_seq
+            (2) self.o_post: a list, post_fit value for self.o_seq
+            (3) self.loss_pre:  MSE for sum((self.o_seq[i]-self.o_pre[i])**2)
+            (4) self.loss_post:  MSE for sum((self.o_seq[i]-self.o_post[i])**2)
         """
 
         self.o_pre = []
