@@ -171,29 +171,27 @@ class DPFN(object):
             (2) perform forward propagate
             (3) save results in self.s_data (size T x M x dim_s); also calculate error and save in error (size T x (K+1))
         """
-        feed = {  self.o_t   : self.o_data[0],
-                  self.s_old : self.sess.run(self.s_0),
-                }
+        
         
         error = np.zeros((self.T,self.K+1))
 
+        # deal with t=0
+        feed = {  self.o_t   : self.o_data[0],
+                  self.s_old : self.sess.run(self.s_0),
+                }
         s_pre, prob, o_forecast=self.sess.run([self.s_new,self.s_new_w,self.o_forecast], feed)
-        
         for i in range(self.K+1):
-            error[0,i]  = np.sum((self.o_data[i] - np.array(o_forecast[i]))**2)
-
-        
+            error[0,i]  = np.sum((self.o_data[i] - np.array(o_forecast[i]))**2)        
         util.resample(self.s_data[0,:],s_pre,prob[:,0])
 
+        # deal with t>0
         for t in range(1,self.T-self.K):
             feed={  self.o_t    : self.o_data[t],
                     self.s_old  : self.s_data[t-1,:,:],
                     }
             s_pre, prob, o_forecast = self.sess.run([self.s_new,self.s_new_w,self.o_forecast],feed)
-
             for i in range(self.K+1):
                 error[t,i]  = np.sum((self.o_data[t+i] - np.array(o_forecast[i]))**2)
-            
             util.resample(self.s_data[t,:],s_pre,prob[:,0])
 
         return error
@@ -251,7 +249,7 @@ class DPFN(object):
         self.opt = tf.train.AdamOptimizer(self.lr).minimize(self.totalLoss)
         # self.opt = tf.train.GradientDescentOptimizer(self.lr).minimize(self.totalLoss)
 
-    def run(self,train,gap,load_name,save_name):
+    def run(self,train,gap,load_name,save_name,num_exp=1):
 
         import time
         if train:
@@ -263,37 +261,43 @@ class DPFN(object):
         if load_name:
             self.saver.restore(self.sess, load_name)
 
-        for _ in range(1000000):
+        if not train:
+            error = np.zeros((self.T,self.K+1))
+
+        for _ in range(num_exp+1):
 
             self.get_o_data(self.T)
 
             if train:
                 if _%gap==0:
                     if _>0:
-                        print(_,total_loss)
-                        print(pre_error)
-                        print(post_error)
-                        print('------train------')
+                        # print(_,total_loss)
+                        # print(pre_error)
+                        # print(post_error)
+                        print(_,np.mean(pre_error),np.mean(post_error),sep='\t')
+                        # print('------train------')
                     pre_error = np.zeros(self.K)
                     post_error = np.zeros(self.K-1)
                     total_loss = 0
-                    if save_name:
-                        self.saver.save(self.sess, save_name)
+                if _%1000==0 and save_name:
+                    self.saver.save(self.sess, save_name+str(_))
                 feed = {  self.o_seq: self.o_data  }
                 res = self.sess.run([self.opt,self.totalLoss,self.loss_post,self.loss_pre],feed)
                 pre_error += np.array(res[3]).flatten()/gap
                 post_error += np.array(res[2]).flatten()/gap
                 total_loss += float(res[1])/gap/self.K
             else:
-                if _%gap==0:
-                    if _>0:
-                        print(error)
-                        for i in range(self.K+1):
-                            print(i,np.mean(error[:-self.K,i]),np.std(error[:-self.K,i])/np.sqrt(gap))
-                        print('-------predict---------')
-                    error = np.zeros((self.T,self.K+1))
                 eval_error = self.ForwardPropagate()
-                error += np.array(eval_error)/gap
+                error += np.array(eval_error)/num_exp
+
+        for t in range(self.T):
+            print(t,end='\t')
+            for item in error[t,:]:
+                print(item,end='\t')
+            print()
+        for i in range(self.K+1):
+            print(i,np.mean(error[:-self.K,i]),np.std(error[:-self.K,i])/np.sqrt(num_exp+1))
+                    
 
 if __name__ == '__main__':
 
@@ -302,28 +306,31 @@ if __name__ == '__main__':
     dim_o = 1
     dim_h = 10
     
+    
     T = 100
     K = 8
+    num_exp = 1000
+    gap = 100
     lr = 0.0001
     train = False
-    gap = 100
     pre_weight=0.5
-    load_name='./model.ckpt'
-    save_name='./model.ckpt'
+    load_name='./model/dim_1_iter=10000'
+    save_name='./model/dim_1_iter=10000'
     # load_name=None
 
-    # T = 12
-    # K = 12
+    # T = 20
+    # K = 20
+    # num_exp = 10000
     # lr = 0.001
     # train = True
     # gap = 100
     # pre_weight=0.5
-    # load_name='./model.ckpt'
-    # save_name='./model.ckpt'
+    # load_name='./model/dim_1_iter='
+    # save_name='./model/dim_1_iter='
     # load_name=None
 
     a=DPFN(M,dim_s,dim_o,dim_h,T,K,lr,pre_weight)
-    a.run(train=train,gap=gap,load_name=load_name,save_name=save_name)
+    a.run(train=train,gap=gap,load_name=load_name,save_name=save_name,num_exp=num_exp)
 
     
     

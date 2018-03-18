@@ -1,0 +1,6 @@
+model_checkpoint_path: "dim_1_iter=10000"
+all_model_checkpoint_paths: "dim_1_iter=6000"
+all_model_checkpoint_paths: "dim_1_iter=7000"
+all_model_checkpoint_paths: "dim_1_iter=8000"
+all_model_checkpoint_paths: "dim_1_iter=9000"
+all_model_checkpoint_paths: "dim_1_iter=10000"
