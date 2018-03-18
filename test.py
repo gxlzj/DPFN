@@ -68,12 +68,12 @@ class DPFN(object):
         self.saver = tf.train.Saver()
 
     def get_o_data(self,T):
-        F = np.array([[0.9]])
-        c1 = np.array([1.0])
-        c2 = np.array([0])
-        H = np.array([[1.0]])
-        Q = np.array([[1.0]])
-        R = np.array([[1.0]])
+        # F = np.array([[0.9]])
+        # c1 = np.array([1.0])
+        # c2 = np.array([0])
+        # H = np.array([[1.0]])
+        # Q = np.array([[1.0]])
+        # R = np.array([[1.0]])
 
         # F = np.array([[-0.9,0.0],[0.0,-0.9]])
         # c1 = np.array([1.0,1.0])
@@ -82,12 +82,12 @@ class DPFN(object):
         # Q = np.array([[0.1,0.0],[0.0,0.1]])
         # R = np.array([[1.0,0.0],[0.0,1.0]])
 
-        # F = np.array([[-0.9,0,0],[0,-0.9,0],[0,0,-0.9]])
-        # c1 = np.array([1,1,1])
-        # c2 = np.array([0,0,0])
-        # H = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        # Q = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        # R = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        F = np.array([[-0.9,0,0],[0,-0.9,0],[0,0,-0.9]])
+        c1 = np.array([1,1,1])
+        c2 = np.array([0,0,0])
+        H = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        Q = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        R = np.array([[1,0,0],[0,1,0],[0,0,1]])
 
         _,self.o_data = sim.dataGenerate(F,H,Q,R,c1,c2,T)
 
@@ -279,8 +279,7 @@ class DPFN(object):
                     pre_error = np.zeros(self.K)
                     post_error = np.zeros(self.K-1)
                     total_loss = 0
-                if _%1000==0 and save_name:
-                    self.saver.save(self.sess, save_name+str(_))
+                    
                 feed = {  self.o_seq: self.o_data  }
                 res = self.sess.run([self.opt,self.totalLoss,self.loss_post,self.loss_pre],feed)
                 pre_error += np.array(res[3]).flatten()/gap
@@ -289,48 +288,52 @@ class DPFN(object):
             else:
                 eval_error = self.ForwardPropagate()
                 error += np.array(eval_error)/num_exp
-
-        for t in range(self.T):
-            print(t,end='\t')
-            for item in error[t,:]:
-                print(item,end='\t')
-            print()
-        for i in range(self.K+1):
-            print(i,np.mean(error[:-self.K,i]),np.std(error[:-self.K,i])/np.sqrt(num_exp+1))
+        if not train:
+            # for t in range(self.T):
+            #     print(t,end='\t')
+            #     for item in error[t,:]:
+            #         print(item,end='\t')
+            #     print()
+            for i in range(self.K+1):
+                print(i,np.mean(error[:-self.K,i]),np.std(error[:-self.K,i])/np.sqrt(num_exp+1))
+        self.saver.save(self.sess, save_name)
                     
 
 if __name__ == '__main__':
 
-    M = 1000
-    dim_s = 1
-    dim_o = 1
-    dim_h = 10
-    
-    
-    T = 100
-    K = 8
-    num_exp = 1000
-    gap = 100
-    lr = 0.0001
-    train = False
-    pre_weight=0.5
-    load_name='./model/dim_1_iter=10000'
-    save_name='./model/dim_1_iter=10000'
-    # load_name=None
+    for cl in [8]:
+        print('Chain length =',cl)
 
-    # T = 20
-    # K = 20
-    # num_exp = 10000
-    # lr = 0.001
-    # train = True
-    # gap = 100
-    # pre_weight=0.5
-    # load_name='./model/dim_1_iter='
-    # save_name='./model/dim_1_iter='
-    # load_name=None
+        M = 100000
+        dim_s = 3
+        dim_o = 3
+        dim_h = 10
+        
+        
+        T = 100
+        K = 8
+        num_exp = 1000
+        gap = 100
+        lr = 0.0001
+        train = False
+        pre_weight=0.5
+        load_name='./model/dim_3_T={}'.format(cl)
+        save_name='./model/dim_3_T={}'.format(cl)
+        # load_name=None
 
-    a=DPFN(M,dim_s,dim_o,dim_h,T,K,lr,pre_weight)
-    a.run(train=train,gap=gap,load_name=load_name,save_name=save_name,num_exp=num_exp)
+        # T = 33
+        # K = 33
+        # num_exp = 10000
+        # lr = 0.001
+        # train = True
+        # gap = 100
+        # pre_weight=0.5
+        # load_name='./model/dim_3_T=16'
+        # save_name='./model/dim_3_T=32'
+        # # load_name=None
+
+        a=DPFN(M,dim_s,dim_o,dim_h,T,K,lr,pre_weight)
+        a.run(train=train,gap=gap,load_name=load_name,save_name=save_name,num_exp=num_exp)
 
     
     
