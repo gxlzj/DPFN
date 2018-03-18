@@ -68,12 +68,12 @@ class DPFN(object):
         self.saver = tf.train.Saver()
 
     def get_o_data(self,T):
-        # F = np.array([[0.9]])
-        # c1 = np.array([1.0])
-        # c2 = np.array([0])
-        # H = np.array([[1.0]])
-        # Q = np.array([[1.0]])
-        # R = np.array([[1.0]])
+        F = np.array([[0.9]])
+        c1 = np.array([1.0])
+        c2 = np.array([0])
+        H = np.array([[1.0]])
+        Q = np.array([[1.0]])
+        R = np.array([[1.0]])
 
         # F = np.array([[-0.9,0.0],[0.0,-0.9]])
         # c1 = np.array([1.0,1.0])
@@ -82,12 +82,12 @@ class DPFN(object):
         # Q = np.array([[0.1,0.0],[0.0,0.1]])
         # R = np.array([[1.0,0.0],[0.0,1.0]])
 
-        F = np.array([[-0.9,0,0],[0,-0.9,0],[0,0,-0.9]])
-        c1 = np.array([1,1,1])
-        c2 = np.array([0,0,0])
-        H = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        Q = np.array([[1,0,0],[0,1,0],[0,0,1]])
-        R = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        # F = np.array([[-0.9,0,0],[0,-0.9,0],[0,0,-0.9]])
+        # c1 = np.array([1,1,1])
+        # c2 = np.array([0,0,0])
+        # H = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        # Q = np.array([[1,0,0],[0,1,0],[0,0,1]])
+        # R = np.array([[1,0,0],[0,1,0],[0,0,1]])
 
         _,self.o_data = sim.dataGenerate(F,H,Q,R,c1,c2,T)
 
@@ -156,7 +156,6 @@ class DPFN(object):
 
         o_hat = self.buildF(self.s_new)
         self.o_forecast = [tf.reduce_sum( o_hat*self.s_new_w, axis=0 )]
-        self.o_forecast.append(tf.reduce_mean(o_hat, axis=0))
 
         s_old = self.s_new
         for t in range(self.K):
@@ -180,9 +179,8 @@ class DPFN(object):
 
         s_pre, prob, o_forecast=self.sess.run([self.s_new,self.s_new_w,self.o_forecast], feed)
         
-        error[0,0] = np.sum((self.o_data[0] - np.array(o_forecast[0]))**2)
-        for i in range(1,self.K+1):
-            error[0,i]  = np.sum((self.o_data[i-1] - np.array(o_forecast[i]))**2)
+        for i in range(self.K+1):
+            error[0,i]  = np.sum((self.o_data[i] - np.array(o_forecast[i]))**2)
 
         
         util.resample(self.s_data[0,:],s_pre,prob[:,0])
@@ -192,10 +190,9 @@ class DPFN(object):
                     self.s_old  : self.s_data[t-1,:,:],
                     }
             s_pre, prob, o_forecast = self.sess.run([self.s_new,self.s_new_w,self.o_forecast],feed)
-            
-            error[t,0] = np.sum((self.o_data[t] - np.array(o_forecast[0]))**2)
-            for i in range(1,self.K+1):
-                error[t,i]  = np.sum((self.o_data[t+i-1] - np.array(o_forecast[i]))**2)
+
+            for i in range(self.K+1):
+                error[t,i]  = np.sum((self.o_data[t+i] - np.array(o_forecast[i]))**2)
             
             util.resample(self.s_data[t,:],s_pre,prob[:,0])
 
@@ -300,9 +297,9 @@ class DPFN(object):
 
 if __name__ == '__main__':
 
-    M = 10000
-    dim_s = 3
-    dim_o = 3
+    M = 1000
+    dim_s = 1
+    dim_o = 1
     dim_h = 10
     
     T = 100
@@ -311,19 +308,19 @@ if __name__ == '__main__':
     train = False
     gap = 100
     pre_weight=0.5
-    load_name='./model3test.ckpt'
-    save_name='./model3test.ckpt'
+    load_name='./model.ckpt'
+    save_name='./model.ckpt'
     # load_name=None
 
     # T = 12
     # K = 12
-    # lr = 0.0001
+    # lr = 0.001
     # train = True
-    # gap = 1000
+    # gap = 100
     # pre_weight=0.5
-    # load_name='./model3test.ckpt'
-    # save_name='./model3test.ckpt'
-    # # load_name=None
+    # load_name='./model.ckpt'
+    # save_name='./model.ckpt'
+    # load_name=None
 
     a=DPFN(M,dim_s,dim_o,dim_h,T,K,lr,pre_weight)
     a.run(train=train,gap=gap,load_name=load_name,save_name=save_name)
